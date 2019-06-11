@@ -1,9 +1,15 @@
 import tkinter as tk
 from tkinter import ttk
 import time
+import csv
+from tkinter import *
+from tkinter import messagebox
 
 formatMoney = "${:0,.2f}"
 dividerLines = "----------------------------------------------------"
+datafile = "data.csv"
+padding = 20
+window_size = "900x450"
 
 
 class StoreTimer():
@@ -38,30 +44,35 @@ class Store:
     day = 1
     StoreList = []
 
-    def __init__(self, storename, storeprofit, storecost, timer, managercost):
+    def __init__(self, storename, storeprofit, storecost, timer, managercost, image, growthfactor):
 
         self.storeName = storename
         self.storeCount = 0
-        self.storeProfit = storeprofit
-        self.storeCost = storecost
-        self.Timer = timer
+        self.storeProfit = float(storeprofit)
+        self.storeCost = float(storecost)
+        self.Timer = float(timer)
         self.ManagerUnlocked = False
-        self.ManagerCost = managercost
+        self.ManagerCost = float(managercost)
         self.TimerObject = StoreTimer(self)
-
+        self.Image = image
+        self.growthfactor = float(growthfactor)
 
     @classmethod
     def display_stores(cls):
-        Store_Label_col1 = tk.Label(root, text="Store Name")
-        Store_Label_col1.grid(row=4, column=0)
-        Store_Label_col2 = tk.Label(root, text="Progress")
-        Store_Label_col2.grid(row=4, column=1)
-        Store_Label_col3 = tk.Label(root, text="Store Cost")
-        Store_Label_col3.grid(row=4, column=2)
-        Store_Label_col4 = tk.Label(root, text="Store Count")
-        Store_Label_col4.grid(row=4, column=3)
-        Store_Label_col5 = tk.Label(root, text="Buy Store")
-        Store_Label_col5.grid(row=4, column=4)
+        Store_Label_col0 = tk.Label(root, text="Click", font="Helvetica 12")
+        Store_Label_col0.grid(row=4, column=0, padx=padding)
+        Store_Label_col1 = tk.Label(root, text="Store Name", font="Helvetica 12")
+        Store_Label_col1.grid(row=4, column=1, padx=padding)
+        Store_Label_col2 = tk.Label(root, text="Progress", font="Helvetica 12")
+        Store_Label_col2.grid(row=4, column=2, padx=padding)
+        Store_Label_col3 = tk.Label(root, text="Cost", font="Helvetica 12")
+        Store_Label_col3.grid(row=4, column=3, padx=padding)
+        Store_Label_col4 = tk.Label(root, text="Count", font="Helvetica 12")
+        Store_Label_col4.grid(row=4, column=4, padx=padding)
+        Store_Label_col5 = tk.Label(root, text="Buy", font="Helvetica 12")
+        Store_Label_col5.grid(row=4, column=5, padx=padding)
+        Store_Label_col6 = tk.Label(root, text="Unlock Manager", font="Helvetica 12")
+        Store_Label_col6.grid(row=4, column=6, padx=padding)
         i = 1
         for store in cls.StoreList:
             store.display_store_info(i)
@@ -69,31 +80,62 @@ class Store:
         print(dividerLines)
 
     def display_store_info(self, i):
-        self.clickbutton = tk.Button(root, text=self.storeName, command=lambda: self.ClickStore())
-        self.clickbutton.grid(row=4 + i, column=0)
+        # Click Button
+        self.clickbutton = tk.Button(root, command=lambda : self.ClickStore())
+        photo = PhotoImage(file="images/" + self.Image)
+        self.clickbutton.config(image=photo, width="40", height="40")
+        self.clickbutton.image = photo
+        self.clickbutton.grid(row=4 + i, column=0, padx=padding)
+
+        # Store Label
+        self.storecountlabel = tk.Label(root, text=self.storeName)
+        self.storecountlabel.grid(row=4 + i, column=1, padx=padding)
+
+        # Progress Bar
         self.progressbar = ttk.Progressbar(root, value=0, maximum=100, orient=tk.HORIZONTAL, length=190, mode='indeterminate')
-        self.progressbar.grid(row=4 + i, column=1)
+        self.progressbar.grid(row=4 + i, column=2, padx=padding)
+
+        # Store Cost
         self.storecostlabel = tk.Label(root, text=formatMoney.format(self.storeCost))
-        self.storecostlabel.grid(row=4 + i, column=2)
+        self.storecostlabel.grid(row=4 + i, column=3, padx=padding)
+
+        # Store Count
         self.storecountlabel = tk.Label(root, text=self.storeCount)
-        self.storecountlabel.grid(row=4 + i, column=3)
-        self.buybutton = tk.Button(root, text="Buy", command=lambda: self.buy_store())
-        self.buybutton.grid(row=4 + i, column=4)
-        self.managerbutton = tk.Button(root, text="Unlock Manager", command=lambda: self.UnlockManager())
-        self.managerbutton.grid(row=4 + i, column=5)
+        self.storecountlabel.grid(row=4 + i, column=4, padx=padding)
+
+        # Buy Button
+        self.buybutton = tk.Button(root, text=formatMoney.format(self.storeCost), width=7, command=lambda: self.buy_store())
+        self.buybutton.grid(row=4 + i, column=5, padx=padding)
+
+        # Manager Button
+        self.managerbutton = tk.Button(root, text=formatMoney.format(self.ManagerCost), width=10, command=lambda: self.UnlockManager())
+        self.managerbutton.grid(row=4 + i, column=6, padx=padding)
 
     def buy_store(self):
-        if self.storeCost < Store.money:
+        if self.storeCount == 0:
+            NextStoreCost = self.storeCost
+        else:
+            NextStoreCost = self.storeCost * self.growthfactor * self.storeCount
+
+        if NextStoreCost < Store.money:
             self.storeCount += 1
 
-            Store.money -= self.storeCost
+            Store.money -= NextStoreCost
             self.storecountlabel.config(text=self.storeCount)
+            NextStoreCost = self.storeCost * self.growthfactor * self.storeCount
+            self.buybutton.config(text=formatMoney.format(NextStoreCost))
             Game.UpdateUI()
         else:
-            print("You don't have enough money")
+            messagebox.showinfo("Not Enough Money", "Not Enough Money to Buy Store")
 
     def UnlockManager(self):
-        self.ManagerUnlocked = True
+        if self.ManagerCost <= Store.money:
+            self.ManagerUnlocked = True
+            Store.money -= self.ManagerCost
+            self.managerbutton.configure(state="disabled")
+            Game.UpdateUI()
+        else:
+            messagebox.showinfo("Not Enough Money", "Not Enough Money to Buy Manager")
 
     def ClickStore(self):
         self.TimerObject.StartTimer()
@@ -103,32 +145,39 @@ class Store:
         Store.money += daily_profit
         Game.UpdateUI()
 
+    @classmethod
+    def CreateStores(cls, gamemanager):
+        _gamemanager = gamemanager
+        # Read data from file
+        with open(datafile, newline='') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                cls.StoreList.append(Store(*row))
+        cls.display_stores()
+
 
 class GameManager():
     def __init__(self):
-        self.CreateStores()
-        self.DisplayGameHeader()
-        Store.display_stores()
 
-    def CreateStores(self):
-        Store.StoreList.append(Store('Lemonade Stand', 1.50, 3, 3, 1))
-        Store.StoreList.append(Store('Record Store', 5, 15, 10, 200))
-        Store.StoreList.append(Store('Ice Cream Store', 10, 90, 30, 5000))
+        # Setup UI
+        self._GameUI = GameUI()
 
+        # Setup Stores
+        Store.CreateStores(self)
+        self._GameUI.DisplayGameHeader()
+
+    def UpdateUI(self):
+        self._GameUI.UpdateUI()
+
+class GameUI():
     def DisplayGameHeader(self):
         root.title("Python Idle Tycoon Business Game")
-
-        root.geometry("700x300")
-
-        money_label = tk.Label(root, text="Money")
-        money_label.grid(row=0, column=0)
-
-        self.money_amount_label = tk.Label(root, text=formatMoney.format(Store.money))
+        root.geometry(window_size)
+        self.money_amount_label = tk.Label(root, text=formatMoney.format(Store.money), font="Helvetica 18 bold")
         self.money_amount_label.grid(row=1, column=0)
 
     def UpdateUI(self):
-        self.money_amount_label.config(text=Store.money)
-
+        self.money_amount_label.config(text=formatMoney.format(Store.money))
 
 # Main Game
 
